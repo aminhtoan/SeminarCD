@@ -1,0 +1,148 @@
+@inject AuthService AuthService
+@inject ApiService ApiService
+@inject IJSRuntime JSRuntime
+
+@if (IsOpen)
+{
+    <div class="modal-overlay" @onclick="HandleCancel">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <div class="modal-header">
+                <h2>@(EditPost != null ? "Edit Post" : "Create New Post")</h2>
+                <button class="close-btn" @onclick="HandleCancel">×</button>
+            </div>
+
+            <div class="modal-body">
+                @if (AuthService.AuthState.User != null)
+                {
+                    <div class="user-info-modal">
+                        <div class="avatar-small">
+                            @AuthService.AuthState.User.Username.ToUpper().FirstOrDefault()
+                        </div>
+                        <div>
+                            <strong>@@@AuthService.AuthState.User.Username</strong>
+                            <p style="color: #666; font-size: 14px; margin: 0;">Posting to everyone</p>
+                        </div>
+                    </div>
+                }
+
+                <form @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
+                    <textarea @bind="content"
+                              @oninput="HandleContentChange"
+                              placeholder="What's on your mind?"
+                              disabled="@isLoading"
+                              rows="6"
+                              maxlength="2000"></textarea>
+                    
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <p style="color: #ff4757; text-align: center; margin-bottom: 15px;">@error</p>
+                    }
+                    
+                    <div class="modal-actions">
+                        <button type="button" 
+                                class="cancel-btn"
+                                @onclick="HandleCancel"
+                                disabled="@isLoading">
+                            Cancel
+                        </button>
+                        <button type="submit" 
+                                class="submit-btn"
+                                disabled="@(isLoading || string.IsNullOrWhiteSpace(content))">
+                            @(isLoading ? "Posting..." : (EditPost != null ? "Update" : "Post"))
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public Post? EditPost { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<Post> OnPostCreated { get; set; }
+    [Parameter] public EventCallback OnPostUpdated { get; set; }
+
+    private string content = "";
+    private bool isLoading = false;
+    private string error = "";
+
+    protected override void OnParametersSet()
+    {
+        if (IsOpen && EditPost != null)
+        {
+            content = EditPost.Content;
+        }
+        else if (!IsOpen)
+        {
+            content = "";
+            error = "";
+        }
+    }
+
+    private void HandleContentChange(ChangeEventArgs e)
+    {
+        content = e.Value?.ToString() ?? "";
+        if (!string.IsNullOrEmpty(error))
+            error = "";
+        StateHasChanged();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            error = "Please write something!";
+            return;
+        }
+
+        isLoading = true;
+        error = "";
+        StateHasChanged();
+
+        try
+        {
+            var user = AuthService.AuthState.User;
+            if (user == null) throw new InvalidOperationException("User not authenticated");
+
+            if (EditPost != null)
+            {
+                await ApiService.UpdatePostAsync(EditPost.Id, content, user.Username);
+                content = "";
+                await OnClose.InvokeAsync();
+                await OnPostUpdated.InvokeAsync();
+            }
+            else
+            {
+                var createdPost = await ApiService.CreatePostAsync(content, user.Username);
+                content = "";
+                await OnClose.InvokeAsync();
+                await OnPostCreated.InvokeAsync(createdPost);
+            }
+        }
+        catch (Exception ex)
+        {
+            error = "An error occurred while creating the post. Please try again.";
+            Console.WriteLine($"Error creating post: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            var shouldCancel = await JSRuntime.InvokeAsync<bool>("confirm", "You have unsaved content. Are you sure you want to cancel?");
+            if (!shouldCancel) return;
+        }
+        
+        content = "";
+        error = "";
+        await OnClose.InvokeAsync();
+    }
+}

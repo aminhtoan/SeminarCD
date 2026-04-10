@@ -1,0 +1,123 @@
+@inject NavigationManager Navigation
+@inject ApiService ApiService
+@inject AuthService AuthService
+
+<div class="post-item" @onclick="HandlePostClick">
+    <div class="post-item-header">
+        <div class="user-avatar-small">
+            @Post.Username.ToUpper().FirstOrDefault()
+        </div>
+        <div class="post-user-info">
+            <h4>@@@Post.Username</h4>
+            <span class="post-time">
+                @Post.CreatedAt.ToLocalTime().ToString("g")
+            </span>
+        </div>
+    </div>
+    
+    <div class="post-content">
+        @Post.Content
+    </div>
+    
+    <div class="post-stats">
+        <span>❤️ @likesCount likes</span>
+        <span>💬 @Post.CommentsCount comments</span>
+    </div>
+    
+    <div class="post-actions">
+        <button class="action-btn like-btn @(isLiked ? "liked" : "")"
+                @onclick="HandleLikeToggle" 
+                @onclick:stopPropagation="true">
+            @(isLiked ? "❤️ Liked" : "🤍 Like")
+        </button>
+        
+        @if (Post.Username == AuthService.AuthState.User?.Username)
+        {
+            <button class="action-btn edit-btn"
+                    @onclick="HandleEdit"
+                    @onclick:stopPropagation="true">
+                ✏️ Edit
+            </button>
+            <button class="action-btn delete-btn"
+                    @onclick="HandleDelete"
+                    @onclick:stopPropagation="true">
+                🗑️ Delete
+            </button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public Post Post { get; set; } = new();
+    [Parameter] public EventCallback OnPostClick { get; set; }
+    [Parameter] public EventCallback OnLike { get; set; }
+    [Parameter] public EventCallback OnUnlike { get; set; }
+    [Parameter] public EventCallback OnEdit { get; set; }
+    [Parameter] public EventCallback OnDelete { get; set; }
+    [Parameter] public EventCallback OnPostDeleted { get; set; }
+    [Parameter] public EventCallback OnPostUpdated { get; set; }
+
+    private bool isLiked;
+    private int likesCount;
+
+    protected override void OnInitialized()
+    {
+        isLiked = Post.IsLiked;
+        likesCount = Post.LikesCount;
+    }
+
+    protected override void OnParametersSet()
+    {
+        isLiked = Post.IsLiked;
+        likesCount = Post.LikesCount;
+    }
+
+    private async Task HandlePostClick()
+    {
+        if (OnPostClick.HasDelegate)
+        {
+            await OnPostClick.InvokeAsync();
+        }
+        else
+        {
+            Navigation.NavigateTo($"/post/{Post.Id}");
+        }
+    }
+
+    private async Task HandleLikeToggle()
+    {
+        try
+        {
+            var user = AuthService.AuthState.User;
+            if (user == null) return;
+
+            if (isLiked)
+            {
+                await OnUnlike.InvokeAsync();
+                likesCount = Math.Max(0, likesCount - 1);
+                isLiked = false;
+            }
+            else
+            {
+                await OnLike.InvokeAsync();
+                likesCount++;
+                isLiked = true;
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error occurred while processing like: {ex.Message}");
+        }
+    }
+
+    private async Task HandleEdit()
+    {
+        await OnEdit.InvokeAsync();
+    }
+
+    private async Task HandleDelete()
+    {
+        await OnDelete.InvokeAsync();
+    }
+}

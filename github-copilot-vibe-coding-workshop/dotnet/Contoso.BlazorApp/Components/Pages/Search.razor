@@ -1,0 +1,167 @@
+@page "/search"
+@rendermode InteractiveServer
+@using Contoso.BlazorApp.Models
+@using Contoso.BlazorApp.Services
+@inject AuthService AuthService
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Search - SocialMedia</PageTitle>
+
+<Sidebar OnCreatePost="HandleOpenPostModal" />
+
+<div class="main-area">
+    <div class="search-container">
+        <div class="search-header">
+            <h2>🔍 Search Posts</h2>
+        </div>
+
+        <div class="search-bar">
+            <input @bind="searchQuery" @bind:event="oninput" @onkeypress="HandleKeyPress" type="text"
+                   placeholder="Search posts..." class="search-input" />
+            <button @onclick="HandleSearch" disabled="@(isLoading || string.IsNullOrWhiteSpace(searchQuery))">
+                @(isLoading ? "..." : "🔍")
+            </button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div style="color: #ff4757; text-align: center; padding: 20px;">@error</div>
+        }
+
+        @if (hasSearched)
+        {
+            @if (searchResults.Any())
+            {
+                <div class="search-results">
+                    <h3>Search Results (@searchResults.Count)</h3>
+                    <div class="posts-feed">
+                        @foreach (var post in searchResults)
+                        {
+                            <PostCard Post="post" OnLike="() => HandleLikePost(post.Id)"
+                                      OnUnlike="() => HandleUnlikePost(post.Id)" />
+                        }
+                    </div>
+                </div>
+            }
+            else if (!isLoading)
+            {
+                <div class="empty-feed">
+                    No posts found for "@lastSearchQuery".
+                </div>
+            }
+        }
+        else
+        {
+            <div class="empty-feed">
+                Enter keywords to search for posts.
+            </div>
+        }
+    </div>
+</div>
+
+<FloatingActionButton OnClick="HandleOpenPostModal" />
+<PostingModal IsOpen="isPostModalOpen" OnClose="HandleClosePostModal" OnPostCreated="HandlePostCreated" />
+
+@code {
+    private string searchQuery = string.Empty;
+    private List<Post> searchResults = new();
+    private bool isLoading = false;
+    private string error = string.Empty;
+    private bool hasSearched = false;
+    private string lastSearchQuery = string.Empty;
+    private bool isPostModalOpen = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task HandleSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery)) return;
+
+        try
+        {
+            isLoading = true;
+            error = string.Empty;
+            lastSearchQuery = searchQuery.Trim();
+            StateHasChanged();
+
+            var result = await ApiService.SearchPostsAsync(lastSearchQuery);
+            searchResults = result;
+            hasSearched = true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error searching posts: {ex.Message}");
+            error = "An error occurred while searching. Please try again.";
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !isLoading && !string.IsNullOrWhiteSpace(searchQuery))
+        {
+            await HandleSearch();
+        }
+    }
+
+    private async Task HandleLikePost(string postId)
+    {
+        if (AuthService.AuthState.User == null) return;
+        try
+        {
+            await ApiService.LikePostAsync(postId, AuthService.AuthState.User.Username);
+            await HandleSearch();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error liking post: {ex.Message}");
+        }
+    }
+
+    private async Task HandleUnlikePost(string postId)
+    {
+        if (AuthService.AuthState.User == null) return;
+        try
+        {
+            await ApiService.UnlikePostAsync(postId, AuthService.AuthState.User.Username);
+            await HandleSearch();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error unliking post: {ex.Message}");
+        }
+    }
+
+    private void HandleOpenPostModal()
+    {
+        isPostModalOpen = true;
+    }
+
+    private void HandleClosePostModal()
+    {
+        isPostModalOpen = false;
+    }
+
+    private async Task HandlePostCreated(Post newPost)
+    {
+        isPostModalOpen = false;
+        if (hasSearched)
+        {
+            await HandleSearch();
+        }
+    }
+}

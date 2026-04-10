@@ -1,0 +1,7 @@
+<button class="floating-action-btn" @onclick="OnClick" title="Create Post">
+    <span>✏️</span>
+</button>
+
+@code {
+    [Parameter] public EventCallback OnClick { get; set; }
+}

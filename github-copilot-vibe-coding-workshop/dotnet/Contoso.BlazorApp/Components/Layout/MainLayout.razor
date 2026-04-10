@@ -1,0 +1,17 @@
+﻿@inherits LayoutComponentBase
+
+<div class="app">
+    <Header />
+    <div class="main-content">
+        @Body
+    </div>
+    <footer class="footer">
+        <p>Simple Social Media © @DateTime.Now.Year</p>
+    </footer>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

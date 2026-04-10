@@ -1,0 +1,100 @@
+@inject AuthService AuthService
+
+@if (IsOpen)
+{
+    <div class="name-modal-overlay">
+        <div class="name-modal-content">
+            <div class="name-modal-header">
+                <h2>Welcome to SocialMedia! 👋</h2>
+                <p>Please enter your information to continue</p>
+            </div>
+
+            <div class="name-modal-body">
+                <form @onsubmit="HandleSubmit" @onsubmit:preventDefault="true">
+                    <div class="input-group">
+                        <label for="username">Username</label>
+                        <input id="username"
+                               type="text"
+                               @bind="username"
+                               @onkeypress="HandleKeyPress"
+                               placeholder="Enter your username"
+                               disabled="@isLoading"
+                               maxlength="50"
+                               autocomplete="off" />
+                        <p class="input-hint">This will be displayed as your public name</p>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(error))
+                    {
+                        <p style="color: #ff4757; text-align: center; margin-bottom: 15px;">@error</p>
+                    }
+
+                    <button type="submit" 
+                            class="continue-btn"
+                            disabled="@(isLoading || string.IsNullOrWhiteSpace(username))">
+                        @(isLoading ? "Processing..." : "Continue")
+                    </button>
+                </form>
+            </div>
+
+            <div class="name-modal-footer">
+                <p>By continuing, you agree to our Terms of Service</p>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string username = "";
+    private bool isLoading = false;
+    private string error = "";
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !string.IsNullOrWhiteSpace(username) && !isLoading)
+        {
+            await HandleSubmit();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        var trimmedUsername = username.Trim();
+        
+        if (string.IsNullOrEmpty(trimmedUsername))
+        {
+            error = "Please enter your username!";
+            return;
+        }
+
+        if (trimmedUsername.Length < 2)
+        {
+            error = "Username must be at least 2 characters long.";
+            return;
+        }
+
+        isLoading = true;
+        error = "";
+        StateHasChanged();
+
+        try
+        {
+            await AuthService.LoginAsync(trimmedUsername);
+            username = "";
+            await OnClose.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            error = "An error occurred. Please try again.";
+            Console.WriteLine($"Error during login: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+}

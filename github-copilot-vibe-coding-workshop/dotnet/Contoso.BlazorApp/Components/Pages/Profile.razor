@@ -1,0 +1,239 @@
+@page "/profile"
+@page "/profile/{username}"
+@rendermode InteractiveServer
+@using Contoso.BlazorApp.Models
+@using Contoso.BlazorApp.Services
+@inject AuthService AuthService
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(isMyProfile ? "My Profile" : $"{Username}'s Profile") - SocialMedia</PageTitle>
+
+<Sidebar OnCreatePost="HandleOpenPostModal" />
+
+<div class="main-area">
+    <div class="profile-container">
+        @if (isLoading)
+        {
+            <div class="empty-feed">Loading profile...</div>
+        }
+        else
+        {
+            <div class="profile-header">
+                <div class="profile-avatar">
+                    @displayUsername.ToUpper().FirstOrDefault()
+                </div>
+                <div class="profile-info">
+                    <h2>@@@displayUsername</h2>
+                    <p>@userPosts.Count posts</p>
+                </div>
+            </div>
+
+            @if (isMyProfile)
+            {
+                <button @onclick="HandleLogout" class="logout-btn" style="margin-bottom: 30px;">
+                    Logout
+                </button>
+            }
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div style="color: #ff4757; text-align: center; padding: 20px; margin-bottom: 20px;">@error</div>
+            }
+
+            <div>
+                <h3 style="color: #333; font-size: 20px; margin-bottom: 20px;">
+                    @(isMyProfile ? "My Posts" : $"{displayUsername}'s Posts")
+                </h3>
+
+                @if (userPosts.Any())
+                {
+                    <div class="posts-feed">
+                        @foreach (var post in userPosts)
+                        {
+                            <PostCard Post="post" OnLike="() => HandleLikePost(post.Id)" OnUnlike="() => HandleUnlikePost(post.Id)"
+                                      OnDelete="() => HandleDeletePost(post.Id)" />
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-feed">
+                        @(isMyProfile ? "You haven't created any posts yet." : "No posts yet.")
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+<FloatingActionButton OnClick="HandleOpenPostModal" />
+<PostingModal IsOpen="isPostModalOpen" OnClose="HandleClosePostModal" OnPostCreated="HandlePostCreated" />
+
+@code {
+    [Parameter] public string? Username { get; set; }
+
+    private List<Post> userPosts = new();
+    private bool isLoading = false;
+    private string error = string.Empty;
+    private bool isMyProfile = false;
+    private string displayUsername = string.Empty;
+    private bool isPostModalOpen = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!AuthService.AuthState.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/");
+            return;
+        }
+
+        await LoadProfile();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (AuthService.AuthState.IsAuthenticated)
+        {
+            await LoadProfile();
+        }
+    }
+
+    private async Task LoadProfile()
+    {
+        try
+        {
+            isLoading = true;
+            error = string.Empty;
+
+            // Determine which profile to load
+            var targetUsername = string.IsNullOrEmpty(Username) ? AuthService.AuthState.User?.Username : Username;
+            isMyProfile = targetUsername == AuthService.AuthState.User?.Username;
+            displayUsername = targetUsername ?? string.Empty;
+
+            if (string.IsNullOrEmpty(targetUsername))
+            {
+                error = "Invalid user profile.";
+                return;
+            }
+
+            // Load user's posts
+            var posts = await ApiService.GetPostsAsync();
+            userPosts = posts.Where(p => p.Username == targetUsername).OrderByDescending(p => p.Id).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading profile: {ex.Message}");
+            error = "An error occurred while loading the profile.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleLogout()
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to logout?");
+        if (!confirmed) return;
+
+        try
+        {
+            await AuthService.LogoutAsync();
+            Navigation.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during logout: {ex.Message}");
+            error = "An error occurred during logout.";
+        }
+    }
+
+    private void HandleOpenPostModal()
+    {
+        if (isMyProfile)
+        {
+            isPostModalOpen = true;
+        }
+    }
+
+    private void HandleClosePostModal()
+    {
+        isPostModalOpen = false;
+    }
+
+    private Task HandlePostCreated(Post newPost)
+    {
+        if (isMyProfile)
+        {
+            userPosts.Insert(0, newPost);
+            StateHasChanged();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task HandleLikePost(string postId)
+    {
+        try
+        {
+            var currentUser = AuthService.AuthState.User?.Username;
+            if (string.IsNullOrEmpty(currentUser)) return;
+
+            var updatedPost = await ApiService.LikePostAsync(postId, currentUser);
+            if (updatedPost != null)
+            {
+                var index = userPosts.FindIndex(p => p.Id == postId);
+                if (index >= 0)
+                {
+                    userPosts[index] = updatedPost;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error liking post: {ex.Message}");
+        }
+    }
+
+    private async Task HandleUnlikePost(string postId)
+    {
+        try
+        {
+            var currentUser = AuthService.AuthState.User?.Username;
+            if (string.IsNullOrEmpty(currentUser)) return;
+
+            await ApiService.UnlikePostAsync(postId, currentUser);
+            var index = userPosts.FindIndex(p => p.Id == postId);
+            if (index >= 0)
+            {
+                userPosts[index].IsLiked = false;
+                userPosts[index].LikesCount = Math.Max(0, userPosts[index].LikesCount - 1);
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error unliking post: {ex.Message}");
+        }
+    }
+
+    private async Task HandleDeletePost(string postId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to delete this post?");
+        if (!confirmed) return;
+
+        try
+        {
+            await ApiService.DeletePostAsync(postId);
+            userPosts = userPosts.Where(p => p.Id != postId).ToList();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting post: {ex.Message}");
+            error = "Failed to delete post.";
+        }
+    }
+}
