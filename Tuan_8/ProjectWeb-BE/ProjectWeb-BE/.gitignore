@@ -1,0 +1,29 @@
+# Maven/Gradle build outputs
+**/target/
+**/build/
+
+# Logs
+**/logs/
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Env files
+.env
+.env.*
+
+# Node artifacts (if any tooling uses Node)
+node_modules/
+
+# Kubernetes secrets/configs
+kubeconfig*.yaml

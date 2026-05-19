@@ -1,0 +1,215 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: ecom_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  service-registry:
+    build:
+      context: ./microservice-backend/service-registry
+    container_name: ecom_service_registry
+    ports:
+      - "8761:8761"
+    restart: unless-stopped
+    networks:
+      - ecom_network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8761/",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./microservice-backend/api-gateway
+    container_name: ecom_api_gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=api-gateway
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  auth-service:
+    build:
+      context: ./microservice-backend/auth-service
+    container_name: ecom_auth_service
+    ports:
+      - "9030:9030"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=auth-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/auth_service
+      - APP_EMAIL_VERIFICATION_ENABLED=false
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  user-service:
+    build:
+      context: ./microservice-backend/user-service
+    container_name: ecom_user_service
+    ports:
+      - "9050:9050"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=user-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/user_service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  product-service:
+    build:
+      context: ./microservice-backend/product-service
+    container_name: ecom_product_service
+    ports:
+      - "9010:9010"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=product-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/product_service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  category-service:
+    build:
+      context: ./microservice-backend/category-service
+    container_name: ecom_category_service
+    ports:
+      - "9000:9000"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=category-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/category_service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  cart-service:
+    build:
+      context: ./microservice-backend/cart-service
+    container_name: ecom_cart_service
+    ports:
+      - "9060:9060"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=cart-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/cart_service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  order-service:
+    build:
+      context: ./microservice-backend/order-service
+    container_name: ecom_order_service
+    ports:
+      - "9070:9070"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=order-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/order_service
+    depends_on:
+      service-registry:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  notification-service:
+    build:
+      context: ./microservice-backend/notification-service
+    container_name: ecom_notification_service
+    ports:
+      - "9020:9020"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
+      - EUREKA_INSTANCE_HOSTNAME=notification-service
+      - EUREKA_INSTANCE_PREFER_IP_ADDRESS=true
+      - SPRING_MAIL_USERNAME=your_email@example.com
+      - SPRING_MAIL_PASSWORD=your_email_password
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ecom_frontend
+    ports:
+      - "5173:80" # Map host 5173 to nginx port 80
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8080
+    depends_on:
+      api-gateway:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - ecom_network
+
+networks:
+  ecom_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:

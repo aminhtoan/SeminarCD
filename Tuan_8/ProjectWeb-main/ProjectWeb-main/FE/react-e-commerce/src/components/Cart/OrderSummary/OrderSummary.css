@@ -1,0 +1,130 @@
+.order-summary-card {
+  background: #fff;
+  border: 1px solid #ebedf2;
+  box-shadow: 0 14px 32px rgba(17, 31, 44, 0.08);
+  padding: 1.15rem;
+  border-radius: 14px;
+}
+
+.summary-row,
+.final-cost {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-row h4,
+.final-cost h4 {
+  margin: 0;
+  color: #172030;
+}
+
+.summary-row {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid #eef1f6;
+}
+
+.order-summary-field {
+  margin-top: 1rem;
+}
+
+.order-summary-field h4 {
+  margin: 0 0 0.45rem;
+  color: #29364a;
+}
+
+.payment-method {
+  margin-top: 1.1rem;
+}
+
+.order-summary-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d8dfea;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  padding: 0.65rem 0.8rem;
+  color: #1b2a42;
+  font-size: 0.95rem;
+}
+
+.order-summary-input:focus {
+  outline: 2px solid rgba(11, 91, 129, 0.22);
+  border-color: #0b5b81;
+}
+
+.promo-row {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.promo-row .order-summary-input {
+  flex: 1;
+}
+
+.phone-note {
+  color: #ff5a3f;
+  display: block;
+  margin-top: 0.45rem;
+}
+
+.flat-button {
+  border: none;
+  color: #fff;
+  background: linear-gradient(135deg, #ff9b2a, #f27710);
+  padding: 0.65rem 1.2rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 600;
+}
+
+.flat-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(242, 119, 16, 0.35);
+}
+
+.apply-promo {
+  background: #ff5f66;
+  min-width: 90px;
+}
+
+.apply-promo:hover {
+  box-shadow: 0 8px 18px rgba(255, 62, 62, 0.32);
+}
+
+.checkout {
+  margin-top: 1rem;
+  padding: 0.82rem 1.5rem;
+  width: 100%;
+  font-size: 1rem;
+}
+
+.final-cost {
+  margin-top: 1.1rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid #eef1f6;
+}
+
+.final-cost h4:last-child {
+  color: #0b5b81;
+}
+
+.flat-button:disabled,
+.flat-button:disabled:hover {
+  background: #d4d7de;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+@media screen and (max-width:500px) {
+  .promo-row {
+    flex-direction: column;
+  }
+
+  .apply-promo {
+    width: 100%;
+  }
+}

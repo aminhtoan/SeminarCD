@@ -1,0 +1,93 @@
+.order-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.order-title h2 {
+  margin: 0;
+  color: #182230;
+}
+
+.order-title p {
+  margin: 0.35rem 0 0;
+  color: #5d6b82;
+  font-size: 0.95rem;
+}
+
+.order-item-pill {
+  background: linear-gradient(135deg, #0f5474, #f27612);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.order-container {
+  max-height: 75vh;
+  overflow: auto;
+  padding-right: 0.35rem;
+}
+
+.order-container::-webkit-scrollbar {
+  width: 0.42rem;
+}
+
+.order-container::-webkit-scrollbar-thumb {
+  background-color: #ced4de;
+  border-radius: 999px;
+}
+
+.main-order-container {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+  gap: 2rem;
+  width: min(100%, 1400px);
+  margin: 0 auto 2rem;
+  padding: 1.25rem;
+  background: radial-gradient(circle at top left, #f4f8ff, #eef2f7);
+  border-radius: 16px;
+}
+
+.view-order {
+  min-width: 0;
+}
+
+.order-summary-panel h2 {
+  margin: 0 0 1rem;
+  color: #182230;
+}
+
+.order-summary-panel {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+}
+
+@media screen and (max-width:768px) {
+  .main-order-container {
+    grid-template-columns: 1fr;
+    padding: 1rem;
+  }
+
+  .order-summary-panel {
+    position: static;
+    margin-top: 2rem;
+  }
+}
+
+@media screen and (max-width:500px) {
+  .order-title {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.8rem;
+  }
+
+  .order-container {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+}
